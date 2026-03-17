@@ -1,0 +1,9 @@
+name = "autopilot_system"
+description = "Shiny new project"
+version = "0.1.0-dev"
+
+authors = ["Keishi Miya"]
+maintainers = ["Keishi Miya <coltmikke@gmail.com>"]
+maintainers-logins = ["KC45jp"]
+
+executables = ["autopilot_system"]

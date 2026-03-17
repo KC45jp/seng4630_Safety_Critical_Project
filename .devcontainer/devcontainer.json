@@ -1,0 +1,14 @@
+{
+    "name": "Ada with Alire",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "adacore.ada"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}
