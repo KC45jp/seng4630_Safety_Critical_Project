@@ -1,4 +1,6 @@
+with RandTest;
+
 procedure Autopilot_System is
 begin
-   null;
+   RandTest;
 end Autopilot_System;
