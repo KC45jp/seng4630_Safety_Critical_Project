@@ -6,7 +6,8 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "adacore.ada"
+                "adacore.ada",
+                "MS-vsliveshare.vsliveshare"
             ]
         }
     },
