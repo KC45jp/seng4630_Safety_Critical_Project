@@ -1,7 +1,7 @@
 import csv
 import random
 
-rows = 400
+rows = 100
 
 def create_patterned_file(filename, include_letters):
     # Default counts
@@ -9,9 +9,9 @@ def create_patterned_file(filename, include_letters):
     num_f = 0
 
     if 'C' in include_letters:
-        num_c = 100
+        num_c = 20
     if 'F' in include_letters:
-        num_f = 100
+        num_f = 20
 
     # Remaining rows for N/W
     num_nw = rows - num_c - num_f
@@ -23,11 +23,19 @@ def create_patterned_file(filename, include_letters):
     # Build final sequence
     letters_sequence = nw_letters + ['C'] * num_c + ['F'] * num_f
 
+    # Shuffle ONLY for case 2 if you want randomness in placement
+    if include_letters == ['N', 'W', 'C']:
+        random.shuffle(letters_sequence)
+
     # Write file
     with open(filename, mode='w', newline='') as file:
         writer = csv.writer(file)
 
         for letter in letters_sequence:
+            #  CASE 2 ONLY: inject occasional empty data rows
+            if include_letters == ['N', 'W', 'C'] and random.random() < 0.1:
+                writer.writerow(['', ''])  # produces (,)
+                continue
             value1 = round(random.uniform(0, 100), 2)
             writer.writerow([value1, letter])
 
