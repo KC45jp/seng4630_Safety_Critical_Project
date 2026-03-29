@@ -1,0 +1,44 @@
+import csv
+import random
+
+rows = 400
+
+def create_patterned_file(filename, include_letters):
+    # Default counts
+    num_c = 0
+    num_f = 0
+
+    if 'C' in include_letters:
+        num_c = 100
+    if 'F' in include_letters:
+        num_f = 100
+
+    # Remaining rows for N/W
+    num_nw = rows - num_c - num_f
+
+    # Generate N/W mix (only if included)
+    nw_choices = [l for l in ['N', 'W'] if l in include_letters]
+    nw_letters = [random.choice(nw_choices) for _ in range(num_nw)] if nw_choices else []
+
+    # Build final sequence
+    letters_sequence = nw_letters + ['C'] * num_c + ['F'] * num_f
+
+    # Write file
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        for letter in letters_sequence:
+            value1 = round(random.uniform(0, 100), 2)
+            writer.writerow([value1, letter])
+
+def write_scenarios():
+    # 1. Only N (no grouping needed)
+    create_patterned_file('Senario1/SpeedSensorData.csv', ['N'])
+
+    # 2. N, W, C (C grouped at end)
+    create_patterned_file('Senario2/SpeedSensorData.csv', ['N', 'W', 'C'])
+
+    # 3. N, W, C, F (C then F at end)
+    create_patterned_file('Senario3/SpeedSensorData.csv', ['N', 'W', 'C', 'F'])
+
+    print("three CSV files created for Speed sensor.")
