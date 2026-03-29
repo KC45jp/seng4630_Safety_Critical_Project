@@ -6,4 +6,4 @@ authors = ["Keishi Miya"]
 maintainers = ["Keishi Miya <coltmikke@gmail.com>"]
 maintainers-logins = ["KC45jp"]
 
-executables = ["RandTest.adb"]
+executables = ["autopilot_system"]

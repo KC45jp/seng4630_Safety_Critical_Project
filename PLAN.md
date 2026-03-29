@@ -266,3 +266,35 @@ end Driver_Input_Task;
 - Execution complexity must be kept to a minimum (spec Design requirement #2).
 - Fault conditions must be classified by severity level (spec Design requirement #3).
 - This is a **group project** — teamwork strategy is also part of the grade.
+
+
+
+# Solutions Considered Previously
+Solution 1: Centralized Controller Architecture
+
+In Solution 1, the entire ADAS is managed by a single central controller. This controller reads all sensor inputs, processes driver commands, detects faults, and generates throttle, braking, and steering outputs. All decision-making is performed in one place, which makes the design simple, deterministic, and easy to implement. This approach has low execution complexity and is suitable as a baseline design. However, because all responsibilities are concentrated in one module, the controller can become large and less modular as the system grows.
+
+Main strengths: simplicity, low complexity, deterministic behavior
+Main weakness: limited modularity and reduced separation of safety responsibilities
+
+Solution 2: Hierarchical Supervisor Architecture
+
+In Solution 2, the system is divided into feature-specific controllers such as cruise control and lane keeping, while a higher-level safety supervisor monitors the whole system. Each feature controller produces its own commands, and the supervisor checks whether those commands are safe before they are sent to the actuators. If unsafe conditions are detected, such as invalid sensors, timeouts, or driver override, the supervisor can override the normal commands and force a safe response. This architecture improves modularity and separates normal driving logic from safety enforcement. Compared with Solution 1, it is more scalable and better suited for fault handling, although it is also more complex to implement.
+
+Main strengths: modularity, clearer safety separation, better fault handling
+Main weakness: more design and coordination complexity than Solution 1
+
+Solution 3: Hierarchical Supervisor with State-Machine Safety Logic (Final Solution)
+
+Solution 3 is a refined version of Solution 2. It keeps the hierarchical architecture, but the safety supervisor is implemented as a finite state machine. Instead of relying only on scattered rule-based checks, the system explicitly manages operating modes such as Off, Ready, Active, Manual Override, Degraded, Fault, and Emergency Stop. State transitions are triggered by events such as engage requests, sensor failures, driver override, or imminent collision. This makes the safety behavior more explicit, deterministic, and easier to verify. It also supports fail-safe operation more clearly because unsafe states can be prevented through controlled transitions. For this reason, Solution 3 is the strongest final design.
+
+Main strengths: explicit safety states, deterministic transitions, strong fail-safe behavior, easier verification and testing
+Main weakness: slightly higher design complexity than Solution 2
+
+Overall Comparison
+Solution 1 is the simplest and most straightforward design.
+Solution 2 improves modularity by separating feature control from safety supervision.
+Solution 3 further improves Solution 2 by using a finite state machine to make safety logic clearer and more robust.
+
+Recommended final solution:
+Solution 3, because it combines modular architecture with explicit and deterministic safety management.
