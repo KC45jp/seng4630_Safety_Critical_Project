@@ -1,3 +1,5 @@
+with Ada.Real_Time;
+
 package Autopilot_System.Types is
    -- State machine nodes
    type System_State is (
@@ -14,25 +16,29 @@ package Autopilot_System.Types is
    type Fault_Level is (NONE, WARNING, CRITICAL, FATAL);
 
    type Speed_Sensor is record
-      Speed : Float; -- km/h
-      FLevel : Fault_Level;
+      Speed     : Float := 0.0; -- km/h
+      FLevel    : Fault_Level := NONE;
+      Timestamp : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
    end record;
 
    type Front_Distance_Sensor is record
-      Front_Distance: Float;-- m (distance to front obstacle)
-      FLevel : Fault_Level;
+      Front_Distance : Float := 0.0; -- m (distance to front obstacle)
+      FLevel         : Fault_Level := NONE;
+      Timestamp      : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
    end record;
 
    type Lane_Offset_Sensor is record
-      Lane_Offset    : Float; -- m (lateral offset from lane centre) right side is positive, leftside is negative
-      FLevel : Fault_Level;
+      Lane_Offset : Float := 0.0; -- m (lateral offset from lane centre) right side is positive, left side is negative
+      FLevel      : Fault_Level := NONE;
+      Timestamp   : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
    end record;
 
    -- Sensor data record
    type Sensor_Data is record
-      Speed          : Speed_Sensor;   
-      Front_Distance : Front_Distance_Sensor;   
-      Lane_Offset    : Lane_Offset_Sensor;   
+      Speed          : Speed_Sensor;
+      Front_Distance : Front_Distance_Sensor;
+      Lane_Offset    : Lane_Offset_Sensor;
+      Overall_Fault  : Fault_Level := NONE;
    end record;
 
    -- Actuator output record
