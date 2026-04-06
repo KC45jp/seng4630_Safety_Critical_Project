@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +28,65 @@ TARGET_SPEED = 100.0
 MAX_SPEED = 130.0
 SAFE_FOLLOW_DIST = 30.0
 ACTUATOR_TOLERANCE = 1.0e-4
+RUNNER_PREFIX = "[PYRUN]"
+RUNNER_COLOR_MODE = os.environ.get("PYRUN_COLOR", "auto").strip().lower()
+ANSI_RESET = "\033[0m"
+RUNNER_PREFIX_COLOR = "\033[1;34m"
+RUNNER_SEPARATOR_COLOR = "\033[2;36m"
+RUNNER_LABEL_COLORS = {
+    "START": "\033[1;36m",
+    "TRACE": "\033[0;36m",
+    "CMD": "\033[2;37m",
+    "PASS": "\033[1;32m",
+    "FAIL": "\033[1;31m",
+    "SUMMARY": "\033[1;35m",
+    "SCHEMA": "\033[1;34m",
+    "DRYRUN": "\033[1;33m",
+}
+
+
+def _runner_use_color(stream: object) -> bool:
+    if RUNNER_COLOR_MODE == "always":
+        return True
+    if RUNNER_COLOR_MODE == "never":
+        return False
+    if os.environ.get("NO_COLOR") is not None:
+        return False
+
+    is_tty = getattr(stream, "isatty", lambda: False)()
+    if not is_tty:
+        return False
+
+    term = os.environ.get("TERM", "")
+    return term.lower() != "dumb"
+
+
+def _runner_style(text: str, color: str, stream: object) -> str:
+    if not color or not _runner_use_color(stream):
+        return text
+    return f"{color}{text}{ANSI_RESET}"
+
+
+def _runner_line(label: str, message: str = "", stream: object = None) -> None:
+    target = sys.stdout if stream is None else stream
+    prefix = _runner_style(RUNNER_PREFIX, RUNNER_PREFIX_COLOR, target)
+    padded_label = f"{label:<7}"
+    styled_label = _runner_style(
+        padded_label,
+        RUNNER_LABEL_COLORS.get(label, ""),
+        target,
+    )
+    if message:
+        print(f"{prefix} {styled_label} {message}", file=target)
+    else:
+        print(f"{prefix} {styled_label}", file=target)
+
+
+def _runner_separator(stream: object = None) -> None:
+    target = sys.stdout if stream is None else stream
+    prefix = _runner_style(RUNNER_PREFIX, RUNNER_PREFIX_COLOR, target)
+    bar = _runner_style('-' * 72, RUNNER_SEPARATOR_COLOR, target)
+    print(f"{prefix} {bar}", file=target)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,10 +103,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command_name == "run":
             return _run_scenarios(args)
     except ScenarioFormatError as exc:
-        print(f"scenario format error: {exc}", file=sys.stderr)
+        _runner_line("FAIL", f"scenario format error: {exc}", stream=sys.stderr)
         return 2
     except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
+        _runner_line("FAIL", str(exc), stream=sys.stderr)
         return 3
 
     parser.error(f"unsupported command: {args.command_name}")
@@ -180,8 +240,8 @@ def _validate_scenarios(args: argparse.Namespace) -> int:
     for scenario_path in scenario_paths:
         rows = read_scenario_csv(scenario_path)
         total_rows += len(rows)
-        print(f"validated {scenario_path} ({len(rows)} rows)")
-    print(f"validated {len(scenario_paths)} scenario files ({total_rows} rows total)")
+        _runner_line("SCHEMA", f"PASS {scenario_path.name} ({len(rows)} rows)")
+    _runner_line("SUMMARY", f"validated {len(scenario_paths)} scenario files ({total_rows} rows total)")
     return 0
 
 
@@ -190,7 +250,7 @@ def _validate_trace(args: argparse.Namespace) -> int:
     scenario_rows = read_scenario_csv(scenario_path)
     trace_rows = read_trace_csv(args.trace)
     _assert_expected_window(scenario_path, scenario_rows, trace_rows, args.window)
-    print(f"validated trace {args.trace} against {scenario_path}")
+    _runner_line("TRACE", f"PASS {args.trace} against {scenario_path.name}")
     return 0
 
 
@@ -198,14 +258,22 @@ def _run_scenarios(args: argparse.Namespace) -> int:
     scenario_paths = _resolve_scenarios(args.scenario_dir, args.scenario)
     args.trace_dir.mkdir(parents=True, exist_ok=True)
 
-    for scenario_path in scenario_paths:
+    total = len(scenario_paths)
+
+    for index, scenario_path in enumerate(scenario_paths, start=1):
         trace_path = args.trace_dir / f"{scenario_path.stem}.trace.csv"
         command = args.command.format(
             scenario=str(scenario_path.resolve()),
             trace=str(trace_path.resolve()),
         )
-        print(f"scenario {scenario_path.stem}: {command}")
+
+        _runner_separator()
+        _runner_line("START", f"[{index}/{total}] {scenario_path.stem}")
+        _runner_line("TRACE", str(trace_path))
+        _runner_line("CMD", command)
+
         if args.dry_run:
+            _runner_line("DRYRUN", f"prepared {scenario_path.stem}")
             continue
 
         result = subprocess.run(
@@ -220,6 +288,7 @@ def _run_scenarios(args: argparse.Namespace) -> int:
         if result.returncode != 0:
             if result.stderr:
                 print(result.stderr, file=sys.stderr, end="")
+            _runner_line("FAIL", f"{scenario_path.stem} exited with code {result.returncode}", stream=sys.stderr)
             raise RuntimeError(
                 f"scenario {scenario_path.stem} failed to run with exit code {result.returncode}"
             )
@@ -227,12 +296,13 @@ def _run_scenarios(args: argparse.Namespace) -> int:
         scenario_rows = read_scenario_csv(scenario_path)
         trace_rows = read_trace_csv(trace_path)
         _assert_expected_window(scenario_path, scenario_rows, trace_rows, args.window)
-        print(f"validated trace {trace_path}")
+        _runner_line("PASS", f"{scenario_path.stem} validated")
 
+    _runner_separator()
     if args.dry_run:
-        print(f"prepared {len(scenario_paths)} scenario commands")
+        _runner_line("SUMMARY", f"prepared {total} scenario commands")
     else:
-        print(f"ran and validated {len(scenario_paths)} scenario files")
+        _runner_line("SUMMARY", f"ran and validated {total} scenario files")
     return 0
 
 
