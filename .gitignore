@@ -6,3 +6,8 @@
 
 # Temporary Document
 .doc/
+
+*.pyc
+# Scenario test outputs
+ScenarioTest/traces/
+SensorData/scenarios/

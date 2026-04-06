@@ -3,11 +3,16 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
+    "runArgs": [
+        "--security-opt=seccomp=unconfined",
+        "--security-opt=apparmor=unconfined"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [
                 "adacore.ada",
-                "MS-vsliveshare.vsliveshare"
+                "MS-vsliveshare.vsliveshare",
+                "ms-python.python"
             ]
         }
     },

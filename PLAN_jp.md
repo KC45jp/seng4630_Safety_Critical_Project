@@ -266,3 +266,109 @@ end Driver_Input_Task;
 - Execution complexityは最低にすること（仕様書 Design要件 #2）
 - フォールト分類はseverity levelで行うこと（仕様書 Design要件 #3）
 - グループプロジェクト（チームワーク戦略も評価対象）
+
+
+diff --git a//workspaces/seng4630_Safety_Critical_Project/.doc/adas_csv_scenario_replay_plan_ja.md b//workspaces/seng4630_Safety_Critical_Project/.doc/adas_csv_scenario_replay_plan_ja.md
+new file mode 100644
+--- /dev/null
++++ b//workspaces/seng4630_Safety_Critical_Project/.doc/adas_csv_scenario_replay_plan_ja.md
+@@ -0,0 +1,99 @@
++# ADAS CSVシナリオ実行・検証計画
++
++## 目的
++- Ada tasking / rendezvous / protected object / contracts を維持したまま、CSV ベースの決定的なシナリオ replay と検証を追加する
++- Python は補助ツールに限定し、本体の state machine と safety 判断は Ada に残す
++- ランダムセンサ生成を置き換え、再現可能なテストとデモを可能にする
++
++## 要件適合の前提
++- `doc/SENG_4630_Overview_2026.md` の以下を満たす
++- fail-safe, deterministic, robust against sensor failures
++- Ada tasking, contracts, exception handling
++- Tasks and rendezvous, protected objects, enumerated types for states
++- 実装本体は Ada 2012 とする
++- CSV/CI 用の実行でも task 構成は崩さない
++- Python は testing harness / scenario generator としてのみ使う
++
++## ディレクトリ方針
++- `SensorData/`
++  - 統合シナリオ CSV の生成を担当する
++  - 正式な出力先は `SensorData/scenarios/`
++- `ScenarioTest/`
++  - シナリオ一覧
++  - trace 検証
++  - `alr run` 起動ラッパー
++  を担当する
++
++## 変更方針
++- `Autopilot_System.Sensors` は乱数生成をやめ、統合 CSV を 50 ms 周期で 1 行ずつ replay する
++- 既存の `Apply_Emergency_Profile` は削除する
++- `Main` は固定 9.5 秒実行をやめ、`--scenario` と `--trace-out` を受けて CSV EOF まで実行する
++- 旧 `SensorData/Senario*` 形式は移行対象とし、新規正式入力は統合 CSV のみとする
++- Python wrapper は scenario 生成、`alr run` 起動、trace 検証だけを担当する
++
++## シナリオ CSV 仕様
++- 正式ヘッダ:
++  `step,speed_mode,speed_value,distance_mode,distance_value,lane_mode,lane_value,driver_command,expected_state,expected_fault`
++- `speed_mode` / `distance_mode` / `lane_mode`:
++  `VALID | INVALID | MISSING`
++- 意味:
++  - `VALID`: 値を反映し valid=true
++  - `INVALID`: サンプル到着扱いで timestamp 更新、valid=false
++  - `MISSING`: 未到着扱いで値も timestamp も更新しない
++- `driver_command`:
++  `NONE | ENGAGE | DISENGAGE | OVERRIDE`
++- `expected_state`:
++  `System_State` の列挙子名をそのまま使う
++- `expected_fault`:
++  `Fault_Level` の列挙子名をそのまま使う
++- `expected_state` / `expected_fault` は毎行必須とする
++
++## 主要な型 / API 変更
++- `Vehicle_State`
++  - センサ別更新 API を追加する
++  - `Update_Speed`
++  - `Update_Distance`
++  - `Update_Lane`
++  - timeout 判定用 timestamp は「最後に valid だった時刻」ではなく「最後にサンプルが到着した時刻」とする
++- `Driver_Input`
++  - package-level の `Apply_Command (Cmd : Driver_Command)` を追加する
++  - `Driver_Input_Task.Send_Command` はこの procedure を呼ぶ
++  - scenario 行の `driver_command` も同じ procedure を使う
++- `Sensors`
++  - CSV parser / row decoder / replay 処理を package body 内の helper に分割する
++- `Main`
++  - `--scenario` と `--trace-out` を受ける
++  - `Sensor_Task` EOF 後に残り task を orderly shutdown する
++
++## Trace 出力仕様
++- Ada 側で trace CSV を出力する
++- 正式ヘッダ:
++  `step,observed_state,observed_fault,observed_speed,observed_distance,observed_lane,observed_speed_valid,observed_distance_valid,observed_lane_valid`
++
++## Python wrapper の責務
++- 決定的な scenario CSV を生成する
++- `alr run -- --scenario <path> --trace-out <path>` を実行する
++- trace CSV を読み、各行の `expected_state` / `expected_fault` がその step から 2 sensor ticks 以内に観測されたかを判定する
++- Ada に 1 行ずつライブ送信して state machine を外から駆動しない
++
++## テスト観点
++- parser が bad header / bad enum / bad numeric / missing required field を行番号つきで拒否すること
++- `VALID` / `INVALID` / `MISSING` が valid flag / timestamp / timeout に正しく影響すること
++- `ENGAGE` / `DISENGAGE` / `OVERRIDE` が scenario 行から適用されること
++- `expected_state` / `expected_fault` が 2 sensor ticks の window で検証されること
++- 少なくとも以下の scenario を用意すること
++- nominal engage/cruise
++- overspeed warning
++- lane deviation warning
++- emergency braking
++- invalid sensor on engage
++- single-sensor invalid
++- single-sensor timeout
++- multiple-sensor failure
++- recovery from minor fault
++- driver override
++
++## 補足
++- レーン値は contract を満たす範囲に正規化する
++- 速度・距離・レーンの値域は fault 判定しきい値と整合するよう Python 側で再設計する
++- シナリオ長は固定 100 行や 200 行ではなく CSV EOF を正式終了条件にする

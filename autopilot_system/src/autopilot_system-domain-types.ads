@@ -3,7 +3,7 @@
 
 with Ada.Real_Time;
 
-package Autopilot_System.Types is
+package Autopilot_System.Domain.Types is
 
    --  -- State machine -------------------------------------------------
    type System_State is (
@@ -42,10 +42,13 @@ package Autopilot_System.Types is
    Invalid_Transition : exception;
 
    --  -- Safety thresholds --------------------------------------------
-   MAX_SPEED         : constant Float    := 130.0;
-   MIN_SAFE_DISTANCE : constant Float    := 10.0;
-   MAX_LANE_OFFSET   : constant Float    := 0.5;
-   SENSOR_TIMEOUT    : constant Duration := 0.5;
+   MAX_SPEED                 : constant Float    := 130.0;
+   MIN_SAFE_DISTANCE         : constant Float    := 10.0;
+   MAX_LANE_OFFSET           : constant Float    := 0.5;
+   SENSOR_TIMEOUT            : constant Duration := 0.5;
+   MAX_PLAUSIBLE_SPEED       : constant Float    := 150.0;
+   MAX_PLAUSIBLE_DISTANCE    : constant Float    := 250.0;
+   MAX_PLAUSIBLE_LANE_OFFSET : constant Float    := 5.0;
 
    --  -- Time helpers -------------------------------------------------
    subtype Sensor_Time is Ada.Real_Time.Time;
@@ -66,9 +69,13 @@ package Autopilot_System.Types is
      (Failed_Sensor_Count (Data) >= 2);
 
    function Sensor_Data_In_Range (Data : Sensor_Data) return Boolean is
-     ((not Data.Speed_Valid or else Data.Speed >= 0.0)
-      and (not Data.Distance_Valid or else Data.Front_Distance >= 0.0)
-      and (not Data.Lane_Valid or else abs (Data.Lane_Offset) <= 5.0));
+     ((not Data.Speed_Valid or else
+         (Data.Speed >= 0.0 and then Data.Speed <= MAX_PLAUSIBLE_SPEED))
+      and (not Data.Distance_Valid or else
+             (Data.Front_Distance >= 0.0 and then
+              Data.Front_Distance <= MAX_PLAUSIBLE_DISTANCE))
+      and (not Data.Lane_Valid or else
+             abs (Data.Lane_Offset) <= MAX_PLAUSIBLE_LANE_OFFSET));
 
    --  -- Control targets ----------------------------------------------
    TARGET_SPEED     : constant Float := 100.0;
@@ -88,4 +95,4 @@ package Autopilot_System.Types is
       elsif From = EMERGENCY then To = SAFE_STOP
       else False);
 
-end Autopilot_System.Types;
+end Autopilot_System.Domain.Types;

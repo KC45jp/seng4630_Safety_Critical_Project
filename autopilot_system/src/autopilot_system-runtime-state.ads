@@ -1,7 +1,7 @@
 with Ada.Real_Time;
-with Autopilot_System.Types; use Autopilot_System.Types;
+with Autopilot_System.Domain.Types; use Autopilot_System.Domain.Types;
 
-package Autopilot_System.Vehicle_State is
+package Autopilot_System.Runtime.State is
 
    protected Shared is
 
@@ -15,6 +15,21 @@ package Autopilot_System.Vehicle_State is
 
       procedure Update_Sensors (Data : in Sensor_Data)
         with Pre => Sensor_Data_In_Range (Data);
+
+      procedure Update_Speed (Value : in Float; Valid : in Boolean)
+        with Pre =>
+          (not Valid
+           or else (Value >= 0.0 and then Value <= MAX_PLAUSIBLE_SPEED));
+
+      procedure Update_Distance (Value : in Float; Valid : in Boolean)
+        with Pre =>
+          (not Valid
+           or else (Value >= 0.0 and then Value <= MAX_PLAUSIBLE_DISTANCE));
+
+      procedure Update_Lane (Value : in Float; Valid : in Boolean)
+        with Pre =>
+          (not Valid
+           or else abs (Value) <= MAX_PLAUSIBLE_LANE_OFFSET);
 
       procedure Set_State (S : in System_State);
 
@@ -44,4 +59,4 @@ package Autopilot_System.Vehicle_State is
       Last_Lane_Update : Sensor_Time := Ada.Real_Time.Clock;
    end Shared;
 
-end Autopilot_System.Vehicle_State;
+end Autopilot_System.Runtime.State;

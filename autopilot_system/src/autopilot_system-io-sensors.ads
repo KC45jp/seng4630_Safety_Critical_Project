@@ -1,4 +1,4 @@
-package Autopilot_System.Sensors is
+package Autopilot_System.IO.Sensors is
 
    --  Periodic sensor task (50 ms cycle).
    --  Generates simulated sensor readings and writes them to Vehicle_State.
@@ -8,4 +8,4 @@ package Autopilot_System.Sensors is
       entry Stop;
    end Sensor_Task;
 
-end Autopilot_System.Sensors;
+end Autopilot_System.IO.Sensors;

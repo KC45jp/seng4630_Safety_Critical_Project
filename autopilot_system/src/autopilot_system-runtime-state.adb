@@ -1,6 +1,6 @@
 with Ada.Real_Time; use Ada.Real_Time;
 
-package body Autopilot_System.Vehicle_State is
+package body Autopilot_System.Runtime.State is
 
    protected body Shared is
 
@@ -43,19 +43,31 @@ package body Autopilot_System.Vehicle_State is
          Now : constant Time := Clock;
       begin
          Current_Sensors := Data;
-
-         if Data.Speed_Valid then
-            Last_Speed_Update := Now;
-         end if;
-
-         if Data.Distance_Valid then
-            Last_Distance_Update := Now;
-         end if;
-
-         if Data.Lane_Valid then
-            Last_Lane_Update := Now;
-         end if;
+         Last_Speed_Update    := Now;
+         Last_Distance_Update := Now;
+         Last_Lane_Update     := Now;
       end Update_Sensors;
+
+      procedure Update_Speed (Value : in Float; Valid : in Boolean) is
+      begin
+         Current_Sensors.Speed       := Value;
+         Current_Sensors.Speed_Valid := Valid;
+         Last_Speed_Update           := Clock;
+      end Update_Speed;
+
+      procedure Update_Distance (Value : in Float; Valid : in Boolean) is
+      begin
+         Current_Sensors.Front_Distance := Value;
+         Current_Sensors.Distance_Valid := Valid;
+         Last_Distance_Update           := Clock;
+      end Update_Distance;
+
+      procedure Update_Lane (Value : in Float; Valid : in Boolean) is
+      begin
+         Current_Sensors.Lane_Offset := Value;
+         Current_Sensors.Lane_Valid  := Valid;
+         Last_Lane_Update            := Clock;
+      end Update_Lane;
 
       procedure Set_State (S : in System_State) is
       begin
@@ -80,4 +92,4 @@ package body Autopilot_System.Vehicle_State is
 
    end Shared;
 
-end Autopilot_System.Vehicle_State;
+end Autopilot_System.Runtime.State;

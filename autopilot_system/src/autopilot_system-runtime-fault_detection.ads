@@ -1,4 +1,4 @@
-package Autopilot_System.Fault_Detection is
+package Autopilot_System.Runtime.Fault_Detection is
 
    --  Periodic fault monitor (100 ms cycle).
    --  Reads sensor data, classifies faults by severity, and drives
@@ -9,4 +9,4 @@ package Autopilot_System.Fault_Detection is
       entry Stop;
    end Fault_Detection_Task;
 
-end Autopilot_System.Fault_Detection;
+end Autopilot_System.Runtime.Fault_Detection;

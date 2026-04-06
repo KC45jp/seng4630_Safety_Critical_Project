@@ -1,9 +1,9 @@
 with Ada.Assertions;                use Ada.Assertions;
 with Ada.Exceptions;                use Ada.Exceptions;
-with Autopilot_System.Types;        use Autopilot_System.Types;
-with Autopilot_System.Vehicle_State;
+with Autopilot_System.Domain.Types;        use Autopilot_System.Domain.Types;
+with Autopilot_System.Runtime.State;
 
-package body Autopilot_System.Control is
+package body Autopilot_System.Runtime.Control is
 
    function Clamp (Value, Lo, Hi : Float) return Float is
      (Float'Max (Lo, Float'Min (Hi, Value)));
@@ -92,14 +92,14 @@ package body Autopilot_System.Control is
            " " & Exception_Message (E));
 
       begin
-         Autopilot_System.Vehicle_State.Shared.Set_Actuators (Emergency_Output);
+         Autopilot_System.Runtime.State.Shared.Set_Actuators (Emergency_Output);
       exception
          when others =>
             null;
       end;
 
       begin
-         Autopilot_System.Vehicle_State.Shared.Set_Fault (FATAL);
+         Autopilot_System.Runtime.State.Shared.Set_Fault (FATAL);
       exception
          when others =>
             null;
@@ -110,7 +110,7 @@ package body Autopilot_System.Control is
            and then Current /= SAFE_STOP
            and then Is_Valid_Transition (Current, SAFE_STOP)
          then
-            Autopilot_System.Vehicle_State.Shared.Set_State (SAFE_STOP);
+            Autopilot_System.Runtime.State.Shared.Set_State (SAFE_STOP);
          end if;
       exception
          when others =>
@@ -138,11 +138,11 @@ package body Autopilot_System.Control is
          end select;
 
          begin
-            Sensors := Autopilot_System.Vehicle_State.Shared.Get_Sensors;
-            Current := Autopilot_System.Vehicle_State.Shared.Get_State;
+            Sensors := Autopilot_System.Runtime.State.Shared.Get_Sensors;
+            Current := Autopilot_System.Runtime.State.Shared.Get_State;
             Step    := Step + 1;
             Output  := Select_Output (Current, Sensors);
-            Autopilot_System.Vehicle_State.Shared.Set_Actuators (Output);
+            Autopilot_System.Runtime.State.Shared.Set_Actuators (Output);
          exception
             when E : Assertion_Error | Constraint_Error =>
                Handle_Control_Failure (Current, E);
@@ -156,4 +156,4 @@ package body Autopilot_System.Control is
       end loop;
    end Control_Task;
 
-end Autopilot_System.Control;
+end Autopilot_System.Runtime.Control;
