@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(alr --version)",
+      "Bash(alr build:*)",
+      "Bash(alr toolchain:*)",
+      "Bash(gprbuild --version)",
+      "Bash(gprbuild -P autopilot_system.gpr)",
+      "Bash(./bin/main)"
+    ]
+  }
+}
