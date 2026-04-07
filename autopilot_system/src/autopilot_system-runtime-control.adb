@@ -52,14 +52,14 @@ package body Autopilot_System.Runtime.Control is
          when STANDBY | ENGAGING =>
             return Idle_Output;
 
-         when ACTIVE | FAULT_MINOR =>
+         when ACTIVE | WARNING_ACTIVE =>
             if All_Sensors_Valid (Sensors) then
                return Nominal_Output (Sensors);
             else
                return Degraded_Output;
             end if;
 
-         when FAULT_MAJOR =>
+         when SENSOR_FAULT =>
             return Degraded_Output;
 
          when EMERGENCY | SAFE_STOP =>
@@ -117,6 +117,32 @@ package body Autopilot_System.Runtime.Control is
             null;
       end;
    end Handle_Control_Failure;
+
+   procedure Apply_Immediate_Output (Mode : in Immediate_Output_Mode) is
+      Output : constant Actuator_Output :=
+        (case Mode is
+            when IDLE_NOW => Idle_Output,
+            when EMERGENCY_NOW => Emergency_Output);
+      Current : constant Actuator_Output :=
+        Autopilot_System.Runtime.State.Shared.Get_Actuators;
+   begin
+      if Current = Output then
+         return;
+      end if;
+
+      Autopilot_System.Runtime.State.Shared.Set_Actuators (Output);
+      Log ("CONTROL",
+           "Immediate output applied: " & Immediate_Output_Mode'Image (Mode));
+   exception
+      when E : Assertion_Error | Constraint_Error =>
+         Log ("CONTROL",
+              "Immediate output contract failure: " & Exception_Name (E) &
+              " " & Exception_Message (E));
+      when E : others =>
+         Log ("CONTROL",
+              "Immediate output failure: " & Exception_Name (E) &
+              " " & Exception_Message (E));
+   end Apply_Immediate_Output;
 
    task body Control_Task is
       Sensors    : Sensor_Data;

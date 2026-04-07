@@ -1,5 +1,6 @@
 with Ada.Assertions;                use Ada.Assertions;
 with Ada.Exceptions;                use Ada.Exceptions;
+with Autopilot_System.Runtime.Control;
 with Autopilot_System.Runtime.State;
 
 package body Autopilot_System.IO.Driver_Input is
@@ -33,7 +34,7 @@ package body Autopilot_System.IO.Driver_Input is
       Current : constant System_State :=
         Autopilot_System.Runtime.State.Shared.Get_State;
    begin
-      if Current in ACTIVE | FAULT_MINOR then
+      if Current in ACTIVE | WARNING_ACTIVE then
          Autopilot_System.Runtime.State.Shared.Set_State (STANDBY);
       else
          Log ("DRIVER",
@@ -49,6 +50,8 @@ package body Autopilot_System.IO.Driver_Input is
    procedure Handle_Override is
    begin
       Autopilot_System.Runtime.State.Shared.Set_State (STANDBY);
+      Autopilot_System.Runtime.Control.Apply_Immediate_Output
+        (Autopilot_System.Runtime.Control.IDLE_NOW);
       Log ("DRIVER", "OVERRIDE -> STANDBY");
    exception
       when E : Assertion_Error | Invalid_Transition =>

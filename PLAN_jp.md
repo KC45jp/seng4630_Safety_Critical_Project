@@ -52,14 +52,14 @@ package Autopilot_System.Types is
       STANDBY,      -- 待機中（起動前）
       ENGAGING,     -- オートパイロット起動確認中
       ACTIVE,       -- オートパイロット稼働中
-      FAULT_MINOR,  -- 軽微な異常（警告のみ、走行継続）
-      FAULT_MAJOR,  -- 重大な異常（制御縮退）
+      WARNING_ACTIVE,  -- 軽微な異常（警告のみ、走行継続）
+      SENSOR_FAULT,  -- 重大な異常（制御縮退）
       EMERGENCY,    -- 緊急ブレーキ実行中
       SAFE_STOP     -- 安全停止完了（終端状態）
    );
 
    -- フォールト重大度
-   type Fault_Level is (NONE, WARNING, CRITICAL, FATAL);
+   type Fault_Level is (NONE, CRITICAL, FATAL);
 
    -- センサーデータ
    type Sensor_Data is record
@@ -143,10 +143,10 @@ end Sensor_Task;
 
 | 条件 | Fault Level | アクション |
 |---|---|---|
-| センサー値範囲外 | WARNING | ログ出力のみ |
-| センサータイムアウト | CRITICAL | 状態をFAULT_MAJORへ |
+| センサー値範囲外 | CRITICAL | 状態をSENSOR_FAULTへ |
+| センサータイムアウト | CRITICAL | 状態をSENSOR_FAULTへ |
 | 前方距離 < MIN_SAFE_DISTANCE | CRITICAL | 状態をEMERGENCYへ |
-| 速度 > MAX_SPEED | WARNING | スロットルを0に |
+| 速度 > MAX_SPEED | NONE | 状態をWARNING_ACTIVEへ |
 | 複数センサー同時故障 | FATAL | 状態をSAFE_STOPへ |
 
 ```ada
@@ -165,8 +165,8 @@ end Fault_Detection_Task;
 |---|---|
 | STANDBY | throttle=0, brake=0, steering=0（何もしない） |
 | ACTIVE | 速度制御 + 車線維持（簡易PID） |
-| FAULT_MINOR | 通常制御継続 + 警告表示 |
-| FAULT_MAJOR | スロットル縮退、ブレーキ準備 |
+| WARNING_ACTIVE | 通常制御継続 + 警告表示 |
+| SENSOR_FAULT | スロットル縮退、ブレーキ準備 |
 | EMERGENCY | throttle=0, brake=1.0（フルブレーキ） |
 | SAFE_STOP | brake=1.0 → 速度0で停止維持 |
 
@@ -209,12 +209,12 @@ end Driver_Input_Task;
              センサーOK ───┘  └─── センサーNG
                   ▼                    ▼
          ┌────────────────┐   ┌──────────────────┐
-         │    ACTIVE      │   │   FAULT_MAJOR    │
+         │    ACTIVE      │   │   SENSOR_FAULT    │
          └──┬───────┬─────┘   └────────┬─────────┘
      警告発生│       │重大異常          │
             ▼       ▼                  │
     ┌───────────┐  ┌──────────┐        │
-    │FAULT_MINOR│  │EMERGENCY │◄───────┘ 前方衝突危険
+    │WARNING_ACTIVE│  │EMERGENCY │◄───────┘ 前方衝突危険
     └───────────┘  └────┬─────┘
                         │ 停止完了
                         ▼

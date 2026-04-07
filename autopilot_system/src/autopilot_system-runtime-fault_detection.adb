@@ -2,6 +2,7 @@ with Ada.Assertions;                use Ada.Assertions;
 with Ada.Exceptions;                use Ada.Exceptions;
 with Ada.Real_Time;                 use Ada.Real_Time;
 with Autopilot_System.Domain.Types;        use Autopilot_System.Domain.Types;
+with Autopilot_System.Runtime.Control;
 with Autopilot_System.Runtime.State;
 
 package body Autopilot_System.Runtime.Fault_Detection is
@@ -57,41 +58,66 @@ package body Autopilot_System.Runtime.Fault_Detection is
          Log_Exception ("Fault/state runtime failure", E);
    end Set_Fault_And_State;
 
-   procedure Apply_Minor_Warning
+   procedure Apply_Immediate_Fault_And_State
+     (Fault   : in Fault_Level;
+      Target  : in System_State;
+      Message : in String) is
+      Current_State : constant System_State :=
+        Autopilot_System.Runtime.State.Shared.Get_State;
+      Current_Fault : constant Fault_Level :=
+        Autopilot_System.Runtime.State.Shared.Get_Fault;
+   begin
+      if Current_Fault /= Fault then
+         Autopilot_System.Runtime.State.Shared.Set_Fault (Fault);
+      end if;
+
+      if Current_State /= Target then
+         Apply_State_If_Allowed (Target);
+      end if;
+
+      if Current_State /= Target or else Current_Fault /= Fault then
+         Log ("FAULT_DET", Message);
+      end if;
+
+      if Target in EMERGENCY | SAFE_STOP then
+         Autopilot_System.Runtime.Control.Apply_Immediate_Output
+           (Autopilot_System.Runtime.Control.EMERGENCY_NOW);
+      end if;
+   exception
+      when E : Assertion_Error | Constraint_Error =>
+         Log_Exception ("Immediate fault/state contract failure", E);
+      when E : others =>
+         Log_Exception ("Immediate fault/state runtime failure", E);
+   end Apply_Immediate_Fault_And_State;
+
+   procedure Apply_Operational_Warning
      (Current : in System_State;
       Message : in String) is
    begin
-      Autopilot_System.Runtime.State.Shared.Set_Fault (WARNING);
-
       if Current = ACTIVE then
-         Apply_State_If_Allowed (FAULT_MINOR);
+         Apply_State_If_Allowed (WARNING_ACTIVE);
       end if;
 
       Log ("FAULT_DET", Message);
    exception
       when E : Assertion_Error | Constraint_Error =>
-         Log_Exception ("Minor warning contract failure", E);
+         Log_Exception ("Warning contract failure", E);
       when E : others =>
-         Log_Exception ("Minor warning runtime failure", E);
-   end Apply_Minor_Warning;
+         Log_Exception ("Warning runtime failure", E);
+   end Apply_Operational_Warning;
 
-   procedure Clear_Operational_Faults (Current : in System_State) is
+   procedure Clear_Operational_Warnings (Current : in System_State) is
    begin
-      if Current = FAULT_MINOR then
-         Autopilot_System.Runtime.State.Shared.Set_Fault (NONE);
+      if Current = WARNING_ACTIVE then
          Apply_State_If_Allowed (ACTIVE);
-         Log ("FAULT_DET", "Fault cleared -> ACTIVE");
-      elsif Current = ACTIVE
-        and then Autopilot_System.Runtime.State.Shared.Get_Fault /= NONE
-      then
-         Autopilot_System.Runtime.State.Shared.Set_Fault (NONE);
+         Log ("FAULT_DET", "Warning cleared -> ACTIVE");
       end if;
    exception
       when E : Assertion_Error | Constraint_Error =>
-         Log_Exception ("Fault clear contract failure", E);
+         Log_Exception ("Warning clear contract failure", E);
       when E : others =>
-         Log_Exception ("Fault clear runtime failure", E);
-   end Clear_Operational_Faults;
+         Log_Exception ("Warning clear runtime failure", E);
+   end Clear_Operational_Warnings;
 
    procedure Handle_Engaging_State
      (Sensors : in Sensor_Data;
@@ -104,7 +130,7 @@ package body Autopilot_System.Runtime.Fault_Detection is
       else
          Set_Fault_And_State
            (CRITICAL,
-            FAULT_MAJOR,
+            SENSOR_FAULT,
             "Engagement blocked by invalid or timed-out sensors");
       end if;
    end Handle_Engaging_State;
@@ -141,13 +167,13 @@ package body Autopilot_System.Runtime.Fault_Detection is
       elsif Timeouts > 0 then
          Set_Fault_And_State
            (CRITICAL,
-            FAULT_MAJOR,
-            "Sensor timeout -> FAULT_MAJOR");
+            SENSOR_FAULT,
+            "Sensor timeout -> SENSOR_FAULT");
       elsif Any_Sensor_Invalid (Sensors) then
          Set_Fault_And_State
            (CRITICAL,
-            FAULT_MAJOR,
-            "Invalid sensor data -> FAULT_MAJOR");
+            SENSOR_FAULT,
+            "Invalid sensor data -> SENSOR_FAULT");
       elsif Sensors.Distance_Valid
         and then Sensors.Front_Distance < MIN_SAFE_DISTANCE
       then
@@ -157,15 +183,15 @@ package body Autopilot_System.Runtime.Fault_Detection is
             "Collision danger! Dist=" &
             Float'Image (Sensors.Front_Distance) & " m");
       elsif Sensors.Speed_Valid and then Sensors.Speed > MAX_SPEED then
-         Apply_Minor_Warning
+         Apply_Operational_Warning
            (Current,
             "Overspeed: " & Float'Image (Sensors.Speed) & " km/h");
       elsif Sensors.Lane_Valid and then abs (Sensors.Lane_Offset) > MAX_LANE_OFFSET then
-         Apply_Minor_Warning
+         Apply_Operational_Warning
            (Current,
             "Lane deviation: " & Float'Image (Sensors.Lane_Offset) & " m");
       else
-         Clear_Operational_Faults (Current);
+         Clear_Operational_Warnings (Current);
       end if;
    end Classify_Operational_Faults;
 
@@ -217,6 +243,62 @@ package body Autopilot_System.Runtime.Fault_Detection is
          Prev_Fault := New_Fault;
       end if;
    end Log_State_Changes;
+
+   procedure Evaluate_Immediate_Critical_Transitions is
+      Sensors  : constant Sensor_Data :=
+        Autopilot_System.Runtime.State.Shared.Get_Sensors;
+      Current  : constant System_State :=
+        Autopilot_System.Runtime.State.Shared.Get_State;
+      Timeouts : constant Natural := Timeout_Count;
+   begin
+      if Current in STANDBY | SAFE_STOP then
+         return;
+      end if;
+
+      if Current = EMERGENCY then
+         if Multiple_Sensors_Failed (Sensors) then
+            Apply_Immediate_Fault_And_State
+              (FATAL,
+               SAFE_STOP,
+               "Multiple sensor failures during emergency -> SAFE_STOP");
+         elsif Timeouts > 0 then
+            Apply_Immediate_Fault_And_State
+              (FATAL,
+               SAFE_STOP,
+               "Sensor timeout during emergency -> SAFE_STOP");
+         elsif Sensors.Speed_Valid and then Sensors.Speed < 1.0 then
+            Apply_Immediate_Fault_And_State
+              (CRITICAL,
+               SAFE_STOP,
+               "Vehicle stopped -> SAFE_STOP");
+         end if;
+
+         return;
+      end if;
+
+      if Current in ENGAGING | ACTIVE | WARNING_ACTIVE | SENSOR_FAULT
+        and then Multiple_Sensors_Failed (Sensors)
+      then
+         Apply_Immediate_Fault_And_State
+           (FATAL,
+            SAFE_STOP,
+            "Multiple sensors failed simultaneously -> SAFE_STOP");
+      elsif Current in ACTIVE | WARNING_ACTIVE | SENSOR_FAULT
+        and then Sensors.Distance_Valid
+        and then Sensors.Front_Distance < MIN_SAFE_DISTANCE
+      then
+         Apply_Immediate_Fault_And_State
+           (CRITICAL,
+            EMERGENCY,
+            "Collision danger! Dist=" &
+            Float'Image (Sensors.Front_Distance) & " m");
+      end if;
+   exception
+      when E : Assertion_Error | Constraint_Error =>
+         Log_Exception ("Immediate transition contract failure", E);
+      when E : others =>
+         Log_Exception ("Immediate transition runtime failure", E);
+   end Evaluate_Immediate_Critical_Transitions;
 
    task body Fault_Detection_Task is
       Sensors    : Sensor_Data;

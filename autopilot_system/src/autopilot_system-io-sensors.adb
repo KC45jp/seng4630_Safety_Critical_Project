@@ -7,6 +7,7 @@ with Ada.Strings.Fixed;             use Ada.Strings.Fixed;
 with Ada.Text_IO;                   use Ada.Text_IO;
 with Autopilot_System.IO.Driver_Input;
 with Autopilot_System.Domain.Types;        use Autopilot_System.Domain.Types;
+with Autopilot_System.Runtime.Fault_Detection;
 with Autopilot_System.Runtime.State;
 
 package body Autopilot_System.IO.Sensors is
@@ -172,7 +173,7 @@ package body Autopilot_System.IO.Sensors is
 
    function Header_Matches (Line : String) return Boolean is
    begin
-      return Field_Count (Line) = 10
+      return Field_Count (Line) = 11
         and then Normalized (Field_At (Line, 1)) = "STEP"
         and then Normalized (Field_At (Line, 2)) = "SPEED_VALUE"
         and then Normalized (Field_At (Line, 3)) = "DISTANCE_VALUE"
@@ -182,14 +183,15 @@ package body Autopilot_System.IO.Sensors is
         and then Normalized (Field_At (Line, 7)) = "EXPECTED_FAULT"
         and then Normalized (Field_At (Line, 8)) = "EXPECTED_ACTUATOR_MODE"
         and then Normalized (Field_At (Line, 9)) = "TRANSITION_LOOKBACK_TICKS"
-        and then Normalized (Field_At (Line, 10)) = "NOTE";
+        and then Normalized (Field_At (Line, 10)) = "TRANSITION_WINDOW_TICKS"
+        and then Normalized (Field_At (Line, 11)) = "NOTE";
    end Header_Matches;
 
    function Parse_Row (Line : String) return Scenario_Row is
       Row : Scenario_Row;
    begin
-      if Field_Count (Line) /= 10 then
-         raise Constraint_Error with "Scenario row must have 10 fields";
+      if Field_Count (Line) /= 11 then
+         raise Constraint_Error with "Scenario row must have 11 fields";
       end if;
 
       Row.Step           := Positive'Value (Trimmed (Field_At (Line, 1)));
@@ -205,6 +207,8 @@ package body Autopilot_System.IO.Sensors is
       declare
          Unused_Lookback : constant Natural :=
            Natural'Value (Trimmed (Field_At (Line, 9)));
+         Unused_Window   : constant Natural :=
+           Natural'Value (Trimmed (Field_At (Line, 10)));
       begin
          null;
       end;
@@ -352,6 +356,7 @@ package body Autopilot_System.IO.Sensors is
       Apply_Speed (Row, Data);
       Apply_Distance (Row, Data);
       Apply_Lane (Row, Data);
+      Autopilot_System.Runtime.Fault_Detection.Evaluate_Immediate_Critical_Transitions;
    end Apply_Row;
 
    task body Sensor_Task is

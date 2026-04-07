@@ -164,7 +164,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--window",
         type=int,
         default=4,
-        help="How many sensor ticks after a scenario row still count as a match.",
+        help="Default sensor-tick window used when a scenario row does not override transition_window_ticks.",
     )
 
     run_parser = subparsers.add_parser(
@@ -205,7 +205,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--window",
         type=int,
         default=4,
-        help="How many sensor ticks after a scenario row still count as a match.",
+        help="Default sensor-tick window used when a scenario row does not override transition_window_ticks.",
     )
     run_parser.add_argument(
         "--dry-run",
@@ -369,9 +369,12 @@ def _assert_expected_window(
     for scenario_row in scenario_rows:
         state_fault_matched = False
         actuator_matched = False
+        effective_window = getattr(scenario_row, "transition_window_ticks", window)
+        if effective_window < 0:
+            raise RuntimeError("transition_window_ticks must be zero or positive")
         start_step = max(1, scenario_row.step - scenario_row.transition_lookback_ticks)
 
-        for step in range(start_step, scenario_row.step + window + 1):
+        for step in range(start_step, scenario_row.step + effective_window + 1):
             trace_row = trace_by_step.get(step)
             if trace_row is None:
                 continue
@@ -396,7 +399,7 @@ def _assert_expected_window(
             note_suffix = "" if not scenario_row.note else f" [{scenario_row.note}]"
             failures.append(
                 f"{scenario_path.name} step {scenario_row.step}{note_suffix}: expected "
-                f"{', '.join(missing_parts)} within -{scenario_row.transition_lookback_ticks}/+{window} ticks"
+                f"{', '.join(missing_parts)} within -{scenario_row.transition_lookback_ticks}/+{effective_window} ticks"
             )
 
     if failures:

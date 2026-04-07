@@ -10,13 +10,13 @@ package Autopilot_System.Domain.Types is
       STANDBY,
       ENGAGING,
       ACTIVE,
-      FAULT_MINOR,
-      FAULT_MAJOR,
+      WARNING_ACTIVE,
+      SENSOR_FAULT,
       EMERGENCY,
       SAFE_STOP);
 
    --  -- Fault severity -----------------------------------------------
-   type Fault_Level is (NONE, WARNING, CRITICAL, FATAL);
+   type Fault_Level is (NONE, CRITICAL, FATAL);
 
    --  -- Sensor data record -------------------------------------------
    type Sensor_Data is record
@@ -86,12 +86,12 @@ package Autopilot_System.Domain.Types is
      (if To = STANDBY then True
       elsif From = SAFE_STOP then False
       elsif From = STANDBY then To = ENGAGING
-      elsif From = ENGAGING then To in ACTIVE | FAULT_MAJOR | SAFE_STOP
+      elsif From = ENGAGING then To in ACTIVE | SENSOR_FAULT | SAFE_STOP
       elsif From = ACTIVE then
-         To in FAULT_MINOR | FAULT_MAJOR | EMERGENCY | SAFE_STOP
-      elsif From = FAULT_MINOR then
-         To in ACTIVE | FAULT_MAJOR | EMERGENCY | SAFE_STOP
-      elsif From = FAULT_MAJOR then To in EMERGENCY | SAFE_STOP
+         To in WARNING_ACTIVE | SENSOR_FAULT | EMERGENCY | SAFE_STOP
+      elsif From = WARNING_ACTIVE then
+         To in ACTIVE | SENSOR_FAULT | EMERGENCY | SAFE_STOP
+      elsif From = SENSOR_FAULT then To in EMERGENCY | SAFE_STOP
       elsif From = EMERGENCY then To = SAFE_STOP
       else False);
 

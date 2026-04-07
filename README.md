@@ -80,8 +80,15 @@ cd autopilot_system
 cd ..
 ```
 
+## State Diagram
+
+- [Mermaid state transition diagram](doc/adas_state_transition_diagram.md)
+
 ## Notes
 
 - Scenario inputs live in `SensorData/scenarios/`.
 - Generated trace CSV files are written under `ScenarioTest/traces/`.
-- `transition_lookback_ticks` and `note` in the scenario CSV files explain transition-boundary tolerance for validation.
+- `transition_lookback_ticks` controls how many ticks early a matching trace row may appear.
+- `transition_window_ticks` controls how many ticks late a matching trace row may appear.
+- Strict safety-critical rows set both values to `0`, which means the expected state/fault/output must be visible on the same trace step.
+- `note` is a human-readable explanation column and is not used by Ada control logic.

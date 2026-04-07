@@ -15,6 +15,7 @@ SCENARIO_HEADERS = [
     "expected_fault",
     "expected_actuator_mode",
     "transition_lookback_ticks",
+    "transition_window_ticks",
     "note",
 ]
 
@@ -38,12 +39,12 @@ SYSTEM_STATES = (
     "STANDBY",
     "ENGAGING",
     "ACTIVE",
-    "FAULT_MINOR",
-    "FAULT_MAJOR",
+    "WARNING_ACTIVE",
+    "SENSOR_FAULT",
     "EMERGENCY",
     "SAFE_STOP",
 )
-FAULT_LEVELS = ("NONE", "WARNING", "CRITICAL", "FATAL")
+FAULT_LEVELS = ("NONE", "CRITICAL", "FATAL")
 ACTUATOR_MODES = (
     "IDLE_OUTPUT",
     "NOMINAL_OUTPUT",
@@ -67,6 +68,7 @@ class ScenarioRow:
     expected_fault: str
     expected_actuator_mode: str
     transition_lookback_ticks: int = 0
+    transition_window_ticks: int = 4
     note: str = ""
 
     def to_csv_row(self) -> list[str]:
@@ -80,6 +82,7 @@ class ScenarioRow:
             self.expected_fault,
             self.expected_actuator_mode,
             str(self.transition_lookback_ticks),
+            str(self.transition_window_ticks),
             self.note,
         ]
 
@@ -180,6 +183,12 @@ def _parse_scenario_row(
             line_number,
             "transition_lookback_ticks",
             raw_row["transition_lookback_ticks"],
+        ),
+        transition_window_ticks=_parse_nonnegative_int(
+            path,
+            line_number,
+            "transition_window_ticks",
+            raw_row["transition_window_ticks"],
         ),
         note=_parse_note(path, line_number, raw_row["note"]),
     )

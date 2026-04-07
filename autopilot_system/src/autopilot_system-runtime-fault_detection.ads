@@ -4,6 +4,8 @@ package Autopilot_System.Runtime.Fault_Detection is
    --  Reads sensor data, classifies faults by severity, and drives
    --  the system state machine.
 
+   procedure Evaluate_Immediate_Critical_Transitions;
+
    task type Fault_Detection_Task is
       entry Start;
       entry Stop;
