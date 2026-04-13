@@ -2,8 +2,11 @@
 
 This is the simplified state view of the current implementation. It keeps the major operational modes and collapses repeated arrows so the diagram is easier to read.
 
+To reduce duplication while keeping the layout readable, it uses `super_state` groupings for the overall autopilot mode (`AUTO`) and the monitored operational flow (`OPERATIONAL`).
+
 ```mermaid
 stateDiagram-v2
+    direction TB
     [*] --> STANDBY
 
     note right of STANDBY
@@ -13,6 +16,7 @@ stateDiagram-v2
     STANDBY --> ENGAGING: ENGAGE [driver command]
 
     state "Autopilot Mode" as AUTO {
+<<<<<<< HEAD
         [*] --> ENGAGING
 
         state "Driving Control" as DRIVE {
@@ -32,6 +36,36 @@ stateDiagram-v2
     DRIVE --> STANDBY: DISENGAGE [driver command]
 
     AUTO --> SAFE_STOP: multiple failures / fatal stop / stop complete
+=======
+        direction TB
+
+        state "Operational States" as OPERATIONAL {
+            direction LR
+            [*] --> ACTIVE
+
+            ACTIVE --> WARNING_ACTIVE: overspeed or lane warning [periodic]
+            WARNING_ACTIVE --> ACTIVE: recovery [periodic]
+
+            ACTIVE --> SENSOR_FAULT: invalid sensor or timeout [periodic]
+            WARNING_ACTIVE --> SENSOR_FAULT: invalid sensor or timeout [periodic]
+        }
+
+        ENGAGING --> ACTIVE: healthy sensors [periodic]
+        ENGAGING --> SENSOR_FAULT: invalid or timed-out sensors [periodic]
+        ENGAGING --> SAFE_STOP: multiple sensor failures [immediate]
+
+        ACTIVE --> EMERGENCY: unsafe distance [immediate]
+        WARNING_ACTIVE --> EMERGENCY: unsafe distance [immediate]
+        SENSOR_FAULT --> EMERGENCY: unsafe distance [immediate]
+
+        OPERATIONAL --> SAFE_STOP: multiple sensor failures [immediate]
+        EMERGENCY --> SAFE_STOP: stop reached or fatal condition [immediate]
+    }
+
+    AUTO --> STANDBY: OVERRIDE [immediate]
+    ACTIVE --> STANDBY: DISENGAGE [periodic]
+    WARNING_ACTIVE --> STANDBY: DISENGAGE [periodic]
+>>>>>>> 41ba543 (fix degraded output bug)
     SAFE_STOP --> STANDBY: OVERRIDE [immediate]
 
     note right of SAFE_STOP
