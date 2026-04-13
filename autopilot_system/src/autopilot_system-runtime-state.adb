@@ -4,6 +4,7 @@ package body Autopilot_System.Runtime.State is
 
    protected body Shared is
 
+      -- getters!
       function Get_Sensors return Sensor_Data is
       begin
          return Current_Sensors;
@@ -39,6 +40,7 @@ package body Autopilot_System.Runtime.State is
          return Last_Lane_Update;
       end Get_Last_Lane_Update;
 
+      -- setters!
       procedure Update_Sensors (Data : in Sensor_Data) is
          Now : constant Time := Clock;
       begin

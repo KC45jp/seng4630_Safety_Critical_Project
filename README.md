@@ -80,9 +80,12 @@ cd autopilot_system
 cd ..
 ```
 
-## State Diagram
+## Diagrams
 
 - [Mermaid state transition diagram](doc/adas_state_transition_diagram.md)
+- [Python-Ada sequence diagram](doc/python_ada_sequence_diagram.md)
+- [Ada internal sequence patterns](doc/ada_internal_sequence_patterns.md)
+- [ADAS design alternatives and decision matrix](doc/adas_design_alternatives.md)
 
 ## Notes
 

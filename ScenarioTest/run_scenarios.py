@@ -425,7 +425,7 @@ def _expected_actuator_output(expected_mode: str, trace_row: TraceRow) -> tuple[
     if expected_mode == "IDLE_OUTPUT":
         return (0.0, 0.0, 0.0)
     if expected_mode == "DEGRADED_OUTPUT":
-        return (0.0, 0.3, 0.0)
+        return (0.0, 0.0, 0.0)
     if expected_mode == "EMERGENCY_OUTPUT":
         return (0.0, 1.0, 0.0)
     if expected_mode == "NOMINAL_OUTPUT":

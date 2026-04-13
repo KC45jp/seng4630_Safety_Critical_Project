@@ -15,7 +15,7 @@ package body Autopilot_System.Runtime.Control is
 
    function Degraded_Output return Actuator_Output is
      (Throttle => 0.0,
-      Brake    => 0.3,
+      Brake    => 0.0,
       Steering => 0.0);
 
    function Emergency_Output return Actuator_Output is
