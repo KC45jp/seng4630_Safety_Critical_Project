@@ -80,9 +80,10 @@ cd autopilot_system
 cd ..
 ```
 
-## State Diagram
+## Diagrams
 
 - [Mermaid state transition diagram](doc/adas_state_transition_diagram.md)
+- [Mermaid component diagram](doc/adas_component_diagram.md)
 
 ## Notes
 
