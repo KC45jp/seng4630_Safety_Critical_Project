@@ -52,14 +52,14 @@ package Autopilot_System.Types is
       STANDBY,      -- Waiting (autopilot off)
       ENGAGING,     -- Safety check in progress before activation
       ACTIVE,       -- Autopilot running normally
-      FAULT_MINOR,  -- Minor fault (warning only, driving continues)
-      FAULT_MAJOR,  -- Major fault (degraded control)
+      WARNING_ACTIVE,  -- Minor fault (warning only, driving continues)
+      SENSOR_FAULT,  -- Major fault (degraded control)
       EMERGENCY,    -- Emergency braking in progress
       SAFE_STOP     -- Vehicle stopped safely (terminal state)
    );
 
    -- Fault severity levels
-   type Fault_Level is (NONE, WARNING, CRITICAL, FATAL);
+   type Fault_Level is (NONE, CRITICAL, FATAL);
 
    -- Sensor data record
    type Sensor_Data is record
@@ -143,10 +143,10 @@ Runs every 100 ms. Monitors `Vehicle_State` and classifies any faults.
 
 | Condition | Fault Level | Action |
 |---|---|---|
-| Sensor value out of range | WARNING | Log only |
-| Sensor timeout | CRITICAL | Transition to FAULT_MAJOR |
+| Sensor value out of range | CRITICAL | Transition to SENSOR_FAULT |
+| Sensor timeout | CRITICAL | Transition to SENSOR_FAULT |
 | Front distance < MIN_SAFE_DISTANCE | CRITICAL | Transition to EMERGENCY |
-| Speed > MAX_SPEED | WARNING | Set throttle to 0 |
+| Speed > MAX_SPEED | NONE | Transition to WARNING_ACTIVE |
 | Multiple sensors failed simultaneously | FATAL | Transition to SAFE_STOP |
 
 ```ada
@@ -165,8 +165,8 @@ Runs every 100 ms. Calculates and outputs actuator commands based on current sta
 |---|---|
 | STANDBY | throttle=0, brake=0, steering=0 (no output) |
 | ACTIVE | Speed control + lane keeping (simplified proportional control) |
-| FAULT_MINOR | Normal control continues + warning displayed |
-| FAULT_MAJOR | Throttle reduced, brake prepared |
+| WARNING_ACTIVE | Normal control continues + warning displayed |
+| SENSOR_FAULT | Throttle reduced, brake prepared |
 | EMERGENCY | throttle=0, brake=1.0 (full braking) |
 | SAFE_STOP | brake=1.0 until speed=0, then hold |
 
@@ -209,12 +209,12 @@ end Driver_Input_Task;
            sensors OK ─────┘  └───── sensors NG
                   ▼                        ▼
          ┌────────────────┐     ┌──────────────────┐
-         │     ACTIVE     │     │   FAULT_MAJOR    │
+         │     ACTIVE     │     │   SENSOR_FAULT    │
          └──┬─────────┬───┘     └────────┬─────────┘
     warning │         │ critical fault   │
             ▼         ▼                  │
    ┌────────────┐  ┌──────────┐          │
-   │FAULT_MINOR │  │EMERGENCY │◄─────────┘ collision danger
+   │WARNING_ACTIVE │  │EMERGENCY │◄─────────┘ collision danger
    └────────────┘  └────┬─────┘
                         │ stopped
                         ▼
