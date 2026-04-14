@@ -5,7 +5,7 @@ project Autopilot_System is
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
    for Main use ("main.adb");
-   for Excluded_Source_Files use ("RandTest.adb");
+   for Excluded_Source_Files use ("randtest.adb");
 
    package Compiler is
       for Default_Switches ("Ada") use

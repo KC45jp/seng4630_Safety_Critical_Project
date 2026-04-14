@@ -11,3 +11,5 @@
 # Scenario test outputs
 ScenarioTest/traces/
 SensorData/scenarios/
+
+.codex

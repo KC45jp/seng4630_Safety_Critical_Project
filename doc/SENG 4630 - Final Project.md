@@ -340,22 +340,36 @@ This project considered more than pure functionality. Because ADAS behavior can 
 
 #### 7.3.1 Safety Analysis
 
-The primary safety concern in this project is that incorrect automation could produce unsafe vehicle behavior. The system therefore uses explicit state transitions, protected shared state, conservative degraded outputs, emergency braking, and a safe-stop mode to reduce risk.
+The safety analysis for this prototype can be expressed more clearly using two complementary views: a Failure Hazard Assessment (FHA) and a Preliminary System Safety Assessment (PSSA). The FHA identifies hazardous failure conditions at the system level and estimates their consequences. The PSSA then maps those hazards onto the selected architecture and explains how the design is intended to control them. Because this is a software-only course prototype rather than a certifiable production vehicle, the severity ratings below are qualitative.
 
-| Hazard | Cause | Potential Consequence | Mitigation in Design | Residual Risk |
-| --- | --- | --- | --- | --- |
-| Autopilot active with unreliable sensors | Invalid values or stale data | Incorrect steering/braking/throttle decisions | Plausibility checks, timeout detection, transition to `SENSOR_FAULT` or `SAFE_STOP` | Medium |
-| Collision due to delayed braking | Short front distance | Injury or property damage | Immediate transition to `EMERGENCY`, full brake output, safe-stop logic | Medium |
-| Loss of driver authority | Software ignores driver command | Unsafe automation persistence | `OVERRIDE` accepted immediately and returns system to `STANDBY` | Low |
-| Excessive speed | Overspeed condition | Reduced safety margin | Warning state and throttle suppression | Medium |
-| Lane departure | Large lane offset | Reduced directional safety | Warning state and steering correction | Medium |
-| Runtime exception in control or monitoring | Software defect | Undefined behavior | Exception handlers force emergency output and safe-stop response where possible | Medium |
+##### Failure Hazard Assessment (FHA)
 
-Operator warnings and training:
+| Hazardous failure condition | Potential effect on vehicle or occupants | Severity | Safety objective |
+| --- | --- | --- | --- |
+| Autopilot continues operating with invalid or timed-out sensor data | Incorrect throttle, braking, or steering decisions could be issued from an unreliable perception picture | High | Detect invalid or stale data quickly and remove normal autonomous authority |
+| Unsafe front distance is not handled in time | Rear-end collision or inability to stop before impact | High | Detect collision danger and force immediate emergency braking |
+| Driver override is ignored or delayed | Human operator loses timely authority to recover the vehicle | High | Accept override from any autonomous mode and return control to the driver |
+| Autopilot permits persistent overspeed | Reduced stopping margin and increased accident severity | Medium | Warn, suppress acceleration, and degrade safely until conditions recover |
+| Lane deviation is not corrected or is corrected too late | Lane departure or sideswipe risk | Medium | Detect excessive lane offset and apply bounded corrective steering |
+| Runtime failure, illegal transition, or software exception occurs during operation | Undefined behavior, frozen outputs, or unsafe persistence of autonomous control | High | Constrain state evolution and force the system into a conservative fail-safe condition |
 
-1. The operator should understand the meaning of each state, especially `WARNING_ACTIVE`, `SENSOR_FAULT`, `EMERGENCY`, and `SAFE_STOP`.
-2. The operator should be trained to keep attention on the environment and use `OVERRIDE` whenever system behavior appears unsafe or unexpected.
-3. The prototype should clearly indicate that it is a driver-assistance system and not a fully autonomous system.
+The FHA shows that the most serious hazards are those that allow the software to keep controlling the vehicle when its inputs are unreliable, when a collision threat is imminent, or when the driver cannot immediately retake control. These hazards shaped the final architecture more strongly than convenience-oriented functions such as speed holding.
+
+##### Preliminary System Safety Assessment (PSSA)
+
+The selected Solution 3 architecture addresses the FHA hazards through explicit state-machine supervision, protected shared state, conservative output selection, and fault-driven transitions. Instead of leaving safety responses distributed across ad hoc control rules, the design allocates each major hazard to a defined detection and mitigation path.
+
+| FHA hazard | Architectural safety measure in the PSSA | Expected effect |
+| --- | --- | --- |
+| Invalid or stale sensor data during autonomous operation | Sensor plausibility limits and timeout monitoring are treated as first-class safety checks. A single sensor failure moves the system to `SENSOR_FAULT`, while multiple sensor failures drive the system to `SAFE_STOP`. | Prevents continued nominal control on unreliable inputs |
+| Failure to stop for a collision threat | Short front distance triggers an immediate transition to `EMERGENCY`, and the control logic applies full braking with zero throttle. If conditions worsen or multiple failures occur, the system escalates to `SAFE_STOP`. | Prioritizes collision avoidance over comfort or feature continuity |
+| Loss of driver authority | The state model permits transition to `STANDBY` on override, and the design intent is that `OVERRIDE` is honored immediately from autonomous modes. | Restores human control as the final authority |
+| Overspeed or lane departure under otherwise healthy sensing | These are treated as operational warnings rather than immediate fatal failures. The system enters `WARNING_ACTIVE`, suppresses throttle when overspeeding, and applies bounded steering correction for lane offset. | Provides graceful degradation before more severe action is needed |
+| Internal runtime or state-management failure | State changes are checked against valid transitions, shared data is protected, and exception handlers attempt to force a conservative fail-safe response with emergency or safe-stop outputs. | Limits the effect of software faults and reduces the chance of undefined autonomous behavior |
+
+This PSSA indicates that the prototype has a coherent safety strategy: hazards are detected early, mapped to explicit supervisory states, and answered with conservative actuator outputs. That is an appropriate result for a course-scale ADAS prototype because it improves determinism, traceability, and testability.
+
+Residual risk still remains. The prototype has no hardware redundancy, no independent watchdog processor, no validated real-vehicle dynamics, and no production-grade human-machine interface. Therefore, the FHA/PSSA result should be interpreted as evidence that the software architecture is safety-oriented and fail-safe by design for simulation, not that it is ready for road deployment without further engineering, verification, and certification.
 
 #### 7.3.2 Economic Considerations
 
